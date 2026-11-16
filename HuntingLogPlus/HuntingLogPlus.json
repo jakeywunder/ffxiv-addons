@@ -1,0 +1,8 @@
+{
+  "Name": "Hunting Log Plus",
+  "Author": "jakeywunder (based on Hunty by Infi)",
+  "Punchline": "Map flags, sorting and a to-do list, built into the Hunting Log.",
+  "Description": "Builds map flags, sorting and a full to-do list into the game's Hunting Log, so you can track down your targets without opening a separate window.\n\n+ Click a monster's icon to flag it on your map\n+ Shift+Click to also teleport to the nearest aetheryte (needs the Teleporter plugin)\n+ Click a dungeon monster's icon to open its dungeon in the Duty Finder\n+ Tick 'All remaining' to list every target you still need in one place\n+ Sort that list by zone, by rank, or by what is nearest to you\n+ Optionally flag the next nearest target automatically when you finish one\n\nInspired by Hunty by Infi, which the monster data also comes from.\nA big thank you to KamiToolKit by MidoriKami for the native UI.",
+  "Tags": [ "hunting log", "hunty" ],
+  "CategoryTags": [ "jobs" ]
+}

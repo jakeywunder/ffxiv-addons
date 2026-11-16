@@ -1,0 +1,33 @@
+[
+    {
+        "Author":  "jakeywunder (based on Hunty by Infi)",
+        "Name":  "Hunting Log Plus",
+        "InternalName":  "HuntingLogPlus",
+        "AssemblyVersion":  "0.1.0.1",
+        "Description":  "Builds map flags, sorting and a full to-do list into the game\u0027s Hunting Log, so you can track down your targets without opening a separate window.\n\n+ Click a monster\u0027s icon to flag it on your map\n+ Shift+Click to also teleport to the nearest aetheryte (needs the Teleporter plugin)\n+ Click a dungeon monster\u0027s icon to open its dungeon in the Duty Finder\n+ Tick \u0027All remaining\u0027 to list every target you still need in one place\n+ Sort that list by zone, by rank, or by what is nearest to you\n+ Optionally flag the next nearest target automatically when you finish one\n\nInspired by Hunty by Infi, which the monster data also comes from.\nA big thank you to KamiToolKit by MidoriKami for the native UI.",
+        "ApplicableVersion":  "any",
+        "Tags":  [
+                     "hunting log",
+                     "hunty"
+                 ],
+        "CategoryTags":  [
+                             "jobs"
+                         ],
+        "DalamudApiLevel":  15,
+        "LoadRequiredState":  0,
+        "LoadSync":  false,
+        "CanUnloadAsync":  false,
+        "LoadPriority":  0,
+        "Punchline":  "Map flags, sorting and a to-do list, built into the Hunting Log.",
+        "AcceptsFeedback":  true,
+        "RepoUrl":  "https://github.com/jakeywunder/ffxiv-addons",
+        "IconUrl":  "https://raw.githubusercontent.com/jakeywunder/ffxiv-addons/main/HuntingLogPlus/images/icon.png",
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadCount":  0,
+        "LastUpdate":  1794797756,
+        "DownloadLinkInstall":  "https://github.com/jakeywunder/ffxiv-addons/releases/download/HuntingLogPlus-v0.1.0.1/HuntingLogPlus.zip",
+        "DownloadLinkUpdate":  "https://github.com/jakeywunder/ffxiv-addons/releases/download/HuntingLogPlus-v0.1.0.1/HuntingLogPlus.zip",
+        "DownloadLinkTesting":  "https://github.com/jakeywunder/ffxiv-addons/releases/download/HuntingLogPlus-v0.1.0.1/HuntingLogPlus.zip"
+    }
+]

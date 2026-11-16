@@ -1,0 +1,37 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+	<PropertyGroup>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<LangVersion>preview</LangVersion>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<PackageId>HuntingLogPlus</PackageId>
+		<AssemblyName>HuntingLogPlus</AssemblyName>
+		<RootNamespace>HuntingLogPlus</RootNamespace>
+		<Version>0.1.0.1</Version>
+		<RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\KamiToolKit\KamiToolKit.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="HuntingLogPlus.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<!-- Monster data is copied from Hunty (MIT, see LICENSE.Hunty.txt). -->
+		<Content Include="monsters.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="images\icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<!-- License notices that have to travel with the released zip. -->
+		<Content Include="LICENSE.Hunty.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="..\KamiToolKit\LICENSE" Link="LICENSE.KamiToolKit.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+</Project>
