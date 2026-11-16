@@ -24,7 +24,8 @@ namespace HuntingLogPlus.Ui;
 ///
 /// Normal view: the game's page is untouched, and clicking a monster's icon flags it on the map.
 /// "All remaining" view: the game's right-hand page is moved out of sight and replaced by
-/// a native list of every unfinished target, with sorting controls.
+/// a native list of unfinished targets, with sorting controls. The list follows the class or
+/// Grand Company icon selected on the left, or covers every class at once.
 ///
 /// Node ids and positions come from the window's layout file, ui/uld/MonsterNoteBook.uld.
 /// </summary>
@@ -40,6 +41,21 @@ internal sealed unsafe class HuntingLogController : IDisposable
     private const uint TreeListNodeId = 46;
     private static readonly uint[] ReplacedNodeIds = [HeaderNodeId, FilterDropDownNodeId, EmptyTextNodeId, RequirementsNodeId, TreeListNodeId];
 
+    // The icons on the left: nine class buttons (nodes 4 to 12), then the Grand Company's
+    // (node 13), which is its own kind of button.
+    private const uint FirstClassTabNodeId = 4;
+    private const uint GrandCompanyTabNodeId = 13;
+    private const ushort ClassTabComponentId = 1013;
+    private const ushort GrandCompanyTabComponentId = 1021;
+
+    // The classes those nine buttons stand for, in the order the window shows them: Gladiator, Pugilist,
+    // Marauder, Lancer / Archer, Rogue, Conjurer, Thaumaturge / Arcanist.
+    private static readonly uint[] ClassTabOrder = [1, 2, 3, 4, 5, 29, 6, 7, 26];
+
+    // How the game numbers Hunting Log entries: class * 10000 + ..., Grand Company * 1000000 + ...
+    private const uint ClassBaseId = 10000;
+    private const uint GrandCompanyBaseId = 1000000;
+
     // A monster row inside the game's list: component 1017, icon node 3, name node 4.
     private const ushort MonsterRowComponentId = 1017;
     private const uint RowIconNodeId = 3;
@@ -54,8 +70,11 @@ internal sealed unsafe class HuntingLogController : IDisposable
 
     private const float OffscreenOffset = 10000.0f;
     private const long RefreshIntervalMs = 500;
-    private const long PageSnapshotDelayMs = 400;
+    private const long SelectionSettleMs = 400;
     private const long ClickDebounceMs = 300;
+
+    private const string NothingLeftMessage = "Nothing left to hunt here.";
+    private const string ClassLockedMessage = "You have not unlocked this class.";
 
     private readonly HuntData data;
     private readonly TargetService targets;
@@ -63,6 +82,7 @@ internal sealed unsafe class HuntingLogController : IDisposable
     private readonly Dictionary<uint, Vector2> nativePositions = new();
 
     private CheckboxNode? viewToggle;
+    private CheckboxNode? allClassesCheckbox;
     private ResNode? panel;
     private TextNode? countText;
     private DropDownNode<SortMode>? sortDropDown;
@@ -79,9 +99,17 @@ internal sealed unsafe class HuntingLogController : IDisposable
     private bool resetScrollRequested;
     private long nextRefresh;
 
-    // The class and rank the game's page showed when the combined view was entered.
-    private (byte ClassIndex, byte Rank)? pageSnapshot;
-    private long pageSnapshotAt;
+    // The class or Grand Company whose icon is selected on the left; 0 when it cannot be told.
+    private uint followedJob;
+
+    // The rank the game's page shows for that selection. Right after the window opens or an icon
+    // is clicked the game is still settling on its page, so changes are followed quietly for a moment.
+    private byte followedRank;
+    private bool selectionSettled;
+    private long selectionSettledAt;
+
+    private string emptyMessage = NothingLeftMessage;
+    private bool warnedUnknownSelection;
 
     private static Configuration Config => Plugin.Config;
 
@@ -168,16 +196,36 @@ internal sealed unsafe class HuntingLogController : IDisposable
         try
         {
             var now = Environment.TickCount64;
+            var job = SelectedJob(addon);
+            var rank = CurrentRank();
 
-            // The class buttons and rank list on the left still drive the game's own page.
-            // Using them means the player wants that page back.
-            if (pageSnapshot == null)
+            if (!selectionSettled)
             {
-                if (now >= pageSnapshotAt)
-                    pageSnapshot = CurrentPage();
+                if (job != followedJob)
+                {
+                    followedJob = job;
+                    refreshRequested = true;
+                }
+
+                followedRank = rank;
+                if (now >= selectionSettledAt)
+                {
+                    selectionSettled = true;
+                    LogSelection(addon, "settled");
+                    WarnIfSelectionUnknown();
+                }
             }
-            else if (CurrentPage() != pageSnapshot)
+            else if (job != followedJob)
             {
+                // An icon on the left was clicked: the list follows it.
+                followedJob = job;
+                OnClassIconClicked(now);
+                LogSelection(addon, "icon clicked");
+            }
+            else if (rank != followedRank)
+            {
+                // The rank list on the left still drives the game's own page.
+                // Using it means the player wants that page back.
                 LeaveCombinedView(addon);
                 return;
             }
@@ -204,7 +252,7 @@ internal sealed unsafe class HuntingLogController : IDisposable
             Config.ShowAllRemaining,
             TogglePosition,
             150.0f,
-            "List every Hunting Log target you still need, in one sortable list.",
+            "List the targets you still need in one sortable list. Click a class or Grand Company icon on the left to choose whose.",
             OnViewToggled);
         viewToggle.AttachNode(addon);
 
@@ -248,25 +296,25 @@ internal sealed unsafe class HuntingLogController : IDisposable
         };
         hint.AttachNode(panel);
 
-        var allClasses = MakeCheckbox(
+        allClassesCheckbox = MakeCheckbox(
             "All classes",
             Config.AllClasses,
             new Vector2(4.0f, 52.0f),
             116.0f,
-            "Include every class you have unlocked, not only your current class and Grand Company. Faded targets belong to a class you are not playing right now.",
+            "Show every class you have unlocked and your Grand Company together, instead of only the icon selected on the left. Faded targets belong to a class you are not playing right now.",
             value =>
             {
                 Config.AllClasses = value;
                 OnListOptionChanged();
             });
-        allClasses.AttachNode(panel);
+        allClassesCheckbox.AttachNode(panel);
 
         var nearest = MakeCheckbox(
             "Nearest first",
             Config.NearestFirst,
             new Vector2(124.0f, 52.0f),
             120.0f,
-            "Put targets in your current zone on top, closest first. Other zones follow, then dungeons.",
+            "Put targets in your current zone on top, closest first. Other zones follow from the nearest to the farthest, then dungeons.",
             value =>
             {
                 Config.NearestFirst = value;
@@ -315,7 +363,8 @@ internal sealed unsafe class HuntingLogController : IDisposable
             OnItemSelected = OnRowClicked,
         };
         list.NoResultsTextNode.TextId = 0;
-        list.NoResultsTextNode.String = "Nothing left to hunt here.";
+        list.NoResultsTextNode.String = NothingLeftMessage;
+        emptyMessage = NothingLeftMessage;
         list.AttachNode(panel);
 
         shownRows = [];
@@ -368,6 +417,7 @@ internal sealed unsafe class HuntingLogController : IDisposable
         panel?.Dispose();
         panel = null;
 
+        allClassesCheckbox = null;
         countText = null;
         sortDropDown = null;
         list = null;
@@ -414,8 +464,10 @@ internal sealed unsafe class HuntingLogController : IDisposable
 
         if (showCombined)
         {
-            pageSnapshot = null;
-            pageSnapshotAt = Environment.TickCount64 + PageSnapshotDelayMs;
+            followedJob = SelectedJob(addon);
+            followedRank = CurrentRank();
+            selectionSettled = false;
+            selectionSettledAt = Environment.TickCount64 + SelectionSettleMs;
             refreshRequested = true;
             resetScrollRequested = true;
         }
@@ -450,13 +502,60 @@ internal sealed unsafe class HuntingLogController : IDisposable
         resetScrollRequested = true;
     }
 
+    /// <summary>
+    /// A class or Grand Company icon on the left was clicked. The list narrows to it, which
+    /// also means leaving "All classes": otherwise the click would appear to do nothing.
+    /// </summary>
+    private void OnClassIconClicked(long now)
+    {
+        if (Config.AllClasses)
+        {
+            Config.AllClasses = false;
+            Config.Save();
+
+            if (allClassesCheckbox != null)
+                allClassesCheckbox.IsChecked = false;
+        }
+
+        // The game picks the rank to show for the new class; let that settle before watching the rank list again.
+        followedRank = CurrentRank();
+        selectionSettled = false;
+        selectionSettledAt = now + SelectionSettleMs;
+
+        refreshRequested = true;
+        resetScrollRequested = true;
+    }
+
+    /// <summary> The logs the list covers: every class, or the one whose icon is selected on the left. </summary>
+    private List<uint> JobsToShow()
+    {
+        if (Config.AllClasses)
+            return TargetService.AllJobs();
+
+        // Without a readable selection, show what can be hunted right now.
+        if (followedJob == 0)
+            return TargetService.CreditableJobs();
+
+        return IsFollowedClassLocked() ? [] : [followedJob];
+    }
+
+    private bool IsFollowedClassLocked()
+        => followedJob != 0 && !HuntProgress.IsGrandCompany(followedJob) && !HuntProgress.IsUnlocked(followedJob);
+
     private void RefreshList(bool force)
     {
         if (list == null || countText == null)
             return;
 
-        var rows = targets.Refresh(Config.AllClasses);
+        var rows = targets.Refresh(JobsToShow());
         TargetService.Sort(rows, Config.Sort, Config.NearestFirst);
+
+        var message = !Config.AllClasses && IsFollowedClassLocked() ? ClassLockedMessage : NothingLeftMessage;
+        if (message != emptyMessage)
+        {
+            emptyMessage = message;
+            list.NoResultsTextNode.String = message;
+        }
 
         // Keep rows from jumping under the cursor: while the mouse is over the list,
         // only numbers update. The order changes once a target is added or removed.
@@ -595,7 +694,7 @@ internal sealed unsafe class HuntingLogController : IDisposable
                 return;
 
             var shownName = ((AtkTextNode*)nameNode)->NodeText.ToString();
-            var monster = FindMonster(shownName);
+            var monster = FindMonster(addon, shownName);
             if (Config.DebugLog)
                 Plugin.Log.Info($"[debug] Icon click on \"{shownName}\" -> {(monster == null ? "no match" : monster.Name)}");
 
@@ -611,17 +710,17 @@ internal sealed unsafe class HuntingLogController : IDisposable
     }
 
     /// <summary> Finds a monster by the name the game shows, preferring the class and rank on screen. </summary>
-    private HuntMonster? FindMonster(string shownName)
+    private HuntMonster? FindMonster(AtkUnitBase* addon, string shownName)
     {
         var wanted = Normalize(shownName);
         if (wanted.Length == 0)
             return null;
 
-        var page = CurrentPage();
-        var job = HuntProgress.JobFromMemoryIndex(page.ClassIndex);
-        if (data.JobRanks.TryGetValue(job, out var ranks) && page.Rank < ranks.Count)
+        var job = SelectedJob(addon);
+        var rank = CurrentRank();
+        if (job != 0 && data.JobRanks.TryGetValue(job, out var ranks) && rank < ranks.Count)
         {
-            var onPage = ranks[page.Rank].Tasks.SelectMany(task => task.Monsters).FirstOrDefault(monster => Matches(monster, wanted));
+            var onPage = ranks[rank].Tasks.SelectMany(task => task.Monsters).FirstOrDefault(monster => Matches(monster, wanted));
             if (onPage != null)
                 return onPage;
         }
@@ -635,10 +734,77 @@ internal sealed unsafe class HuntingLogController : IDisposable
     private static string Normalize(string name)
         => new string(name.Where(character => !char.IsControl(character)).ToArray()).Trim().ToLowerInvariant();
 
-    private static (byte ClassIndex, byte Rank) CurrentPage()
+    /// <summary>
+    /// The class or Grand Company whose icon is selected on the left, as the key used by the
+    /// hunt data (a class id, or 10000 + Grand Company id). 0 when it cannot be told.
+    /// </summary>
+    private static uint SelectedJob(AtkUnitBase* addon)
+    {
+        // The highlighted icon is what the player sees, so it decides.
+        var tab = CheckedTab(addon);
+        if (tab == GrandCompanyTabNodeId)
+            return HuntProgress.CurrentGrandCompany;
+
+        if (tab >= FirstClassTabNodeId && tab - FirstClassTabNodeId < ClassTabOrder.Length)
+            return ClassTabOrder[tab - FirstClassTabNodeId];
+
+        // No highlighted icon could be found: fall back on the game's own record of the page.
+        var agent = AgentMonsterNote.Instance();
+        if (agent == null)
+            return 0;
+
+        if (agent->BaseId == ClassBaseId && HuntProgress.IsHuntingClass(agent->ClassId))
+            return agent->ClassId;
+
+        return agent->BaseId == GrandCompanyBaseId ? HuntProgress.CurrentGrandCompany : 0;
+    }
+
+    /// <summary> Node id of the highlighted class or Grand Company icon on the left, or 0 if none is. </summary>
+    private static uint CheckedTab(AtkUnitBase* addon)
+    {
+        for (var id = FirstClassTabNodeId; id <= GrandCompanyTabNodeId; id++)
+        {
+            var node = addon->GetNodeById(id);
+            if (node == null)
+                continue;
+
+            var type = (ushort)node->Type;
+            if (type != ClassTabComponentId && type != GrandCompanyTabComponentId)
+                continue;
+
+            var button = (AtkComponentButton*)((AtkComponentNode*)node)->Component;
+            if (button != null && button->IsChecked)
+                return id;
+        }
+
+        return 0;
+    }
+
+    private static byte CurrentRank()
     {
         var agent = AgentMonsterNote.Instance();
-        return agent == null ? default : (agent->ClassIndex, agent->Rank);
+        return agent == null ? (byte)0 : agent->Rank;
+    }
+
+    private void WarnIfSelectionUnknown()
+    {
+        if (followedJob != 0 || warnedUnknownSelection)
+            return;
+
+        warnedUnknownSelection = true;
+        Plugin.Log.Warning("Could not tell which class is selected in the Hunting Log, so the list shows the current class and Grand Company. \"/hlplus debug\" logs the details.");
+    }
+
+    private void LogSelection(AtkUnitBase* addon, string reason)
+    {
+        if (!Config.DebugLog)
+            return;
+
+        var agent = AgentMonsterNote.Instance();
+        var record = agent == null
+            ? "none"
+            : $"class id {agent->ClassId}, base {agent->BaseId}, index {agent->ClassIndex}, rank {agent->Rank}";
+        Plugin.Log.Info($"[debug] Hunting Log selection ({reason}): following {followedJob}, highlighted button node {CheckedTab(addon)}, game record: {record}");
     }
 
     private static AtkUnitBase* GetAddon() => RaptureAtkUnitManager.Instance()->GetAddonByName(AddonName, 1);

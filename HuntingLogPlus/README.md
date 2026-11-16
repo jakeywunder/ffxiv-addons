@@ -13,9 +13,9 @@ Paste it under "Custom Plugin Repositories" in `/xlsettings` > Experimental, tic
 ## What it does
 
 - Click a monster's icon in the Hunting Log to flag it on the map. Shift+Click also teleports to the nearest aetheryte (needs the Teleporter plugin). Dungeon monsters open the Duty Finder.
-- Tick "All remaining" for one list of every target you still need, sorted by zone or rank.
-- "All classes" includes every class you have unlocked. Without it, the list covers your current class and Grand Company. Faded targets belong to a class you aren't playing right now.
-- "Nearest first" puts targets in your current zone on top by distance, then other zones, then dungeons.
+- Tick "All remaining" for one list of the targets you still need, sorted by zone or rank. Click a class or Grand Company icon on the left to pick whose targets it shows.
+- "All classes" shows every class you have unlocked and your Grand Company together. Faded targets belong to a class you aren't playing right now.
+- "Nearest first" puts targets in your current zone on top by distance, then other zones from the nearest to the farthest, then dungeons.
 - "Auto-flag next" flags the next nearest target when you finish one.
 
 ## Credits

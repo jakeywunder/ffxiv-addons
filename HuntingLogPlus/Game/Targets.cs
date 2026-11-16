@@ -24,10 +24,16 @@ public sealed class TargetRow
     /// <summary> Kills so far. </summary>
     public int Killed { get; set; }
 
-    /// <summary> The zone to send the player to: the current zone when the monster lives there, otherwise its first one. </summary>
+    /// <summary> The spot to send the player to: in the current zone when the monster lives there, otherwise in the nearest of its zones. </summary>
     public HuntLocation Location { get; set; } = null!;
 
     public bool InCurrentZone { get; set; }
+
+    /// <summary>
+    /// How far the target's zone is from the player's zone on the world map (see <see cref="Game.ZoneDistance"/>).
+    /// 0 in the current zone, <see cref="float.MaxValue"/> when it cannot be measured.
+    /// </summary>
+    public float ZoneDistance { get; set; } = float.MaxValue;
 
     /// <summary> Yalms to the stored spot, or <see cref="float.MaxValue"/> when it cannot be measured. </summary>
     public float Distance { get; set; } = float.MaxValue;
@@ -42,13 +48,49 @@ public sealed class TargetRow
 /// <summary> Builds and orders the list of targets the player still needs. </summary>
 internal sealed class TargetService(HuntData data)
 {
+    private static readonly ZoneDistance Zones = new(Sheets.Aetheryte, Sheets.TerritoryType);
+
     private readonly Dictionary<TargetKey, TargetRow> rows = new();
+
+    /// <summary> The logs whose kills count right now: the current class and the Grand Company. </summary>
+    public static List<uint> CreditableJobs()
+    {
+        var jobs = new List<uint>();
+        if (!HuntProgress.IsReady)
+            return jobs;
+
+        var currentClass = HuntProgress.CurrentClass;
+        if (currentClass != 0)
+            jobs.Add(currentClass);
+
+        var grandCompany = HuntProgress.CurrentGrandCompany;
+        if (grandCompany != 0)
+            jobs.Add(grandCompany);
+
+        return jobs;
+    }
+
+    /// <summary> Every class the player has unlocked, plus the Grand Company. </summary>
+    public static List<uint> AllJobs()
+    {
+        var jobs = new List<uint>();
+        if (!HuntProgress.IsReady)
+            return jobs;
+
+        jobs.AddRange(HuntProgress.ClassJobs.Where(HuntProgress.IsUnlocked));
+
+        var grandCompany = HuntProgress.CurrentGrandCompany;
+        if (grandCompany != 0)
+            jobs.Add(grandCompany);
+
+        return jobs;
+    }
 
     /// <summary>
     /// Refreshes the unfinished targets from game memory.
     /// </summary>
-    /// <param name="allClasses"> Every unlocked class, instead of only the current one. The Grand Company is always included. </param>
-    public List<TargetRow> Refresh(bool allClasses)
+    /// <param name="jobs"> The classes and Grand Company whose logs to read. </param>
+    public List<TargetRow> Refresh(IReadOnlyList<uint> jobs)
     {
         var result = new List<TargetRow>();
         if (!HuntProgress.IsReady)
@@ -59,15 +101,6 @@ internal sealed class TargetService(HuntData data)
 
         var currentClass = HuntProgress.CurrentClass;
         var grandCompany = HuntProgress.CurrentGrandCompany;
-
-        var jobs = new List<uint>();
-        if (allClasses)
-            jobs.AddRange(HuntProgress.ClassJobs.Where(HuntProgress.IsUnlocked));
-        else if (currentClass != 0)
-            jobs.Add(currentClass);
-
-        if (grandCompany != 0)
-            jobs.Add(grandCompany);
 
         var territory = (uint)Plugin.ClientState.TerritoryType;
         var player = Plugin.ObjectTable.LocalPlayer;
@@ -106,8 +139,9 @@ internal sealed class TargetService(HuntData data)
 
                     row.Killed = killed;
                     row.Creditable = job == currentClass || job == grandCompany;
-                    row.Location = monster.Locations.FirstOrDefault(location => location.Terri == territory) ?? monster.Locations[0];
+                    row.Location = PickLocation(monster, territory);
                     row.InCurrentZone = row.Location.Terri == territory;
+                    row.ZoneDistance = row.Location.IsDuty ? float.MaxValue : Zones.Between(territory, row.Location.Terri);
                     row.Distance = row.InCurrentZone && !row.Location.IsDuty && playerPosition != null
                         ? Vector2.Distance(playerPosition.Value, row.Location.WorldPosition)
                         : float.MaxValue;
@@ -125,8 +159,36 @@ internal sealed class TargetService(HuntData data)
     }
 
     /// <summary>
+    /// The spot to send the player to for a monster that can live in several zones: the one in the
+    /// current zone if there is one, otherwise the one in the nearest zone.
+    /// </summary>
+    private static HuntLocation PickLocation(HuntMonster monster, uint territory)
+    {
+        HuntLocation? nearest = null;
+        var nearestDistance = float.MaxValue;
+
+        foreach (var location in monster.Locations)
+        {
+            if (location.Terri == territory)
+                return location;
+
+            if (location.IsDuty)
+                continue;
+
+            var distance = Zones.Between(territory, location.Terri);
+            if (nearest == null || distance < nearestDistance)
+            {
+                nearest = location;
+                nearestDistance = distance;
+            }
+        }
+
+        return nearest ?? monster.Locations[0];
+    }
+
+    /// <summary>
     /// Orders targets by zone or by rank. With <paramref name="nearestFirst"/>, targets in the current
-    /// zone come first by distance, then other zones, then dungeons.
+    /// zone come first by distance, then other zones from the nearest to the farthest, then dungeons.
     /// </summary>
     public static void Sort(List<TargetRow> targets, SortMode mode, bool nearestFirst)
     {
@@ -138,12 +200,15 @@ internal sealed class TargetService(HuntData data)
                 if (bucket != 0)
                     return bucket;
 
-                if (Bucket(left) == 0)
+                // Inside the current zone the yalms decide; between other zones, how far the zone is.
+                var distance = Bucket(left) switch
                 {
-                    var distance = left.Distance.CompareTo(right.Distance);
-                    if (distance != 0)
-                        return distance;
-                }
+                    0 => left.Distance.CompareTo(right.Distance),
+                    1 => left.ZoneDistance.CompareTo(right.ZoneDistance),
+                    _ => 0,
+                };
+                if (distance != 0)
+                    return distance;
             }
 
             var byMode = mode == SortMode.Zone ? CompareZone(left, right) : CompareRank(left, right);

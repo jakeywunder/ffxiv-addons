@@ -14,6 +14,9 @@ internal static unsafe class HuntProgress
 
     public static bool IsGrandCompany(uint job) => job > GrandCompanyOffset;
 
+    /// <summary> True for the base classes that have a Hunting Log. </summary>
+    public static bool IsHuntingClass(uint job) => Array.IndexOf(ClassJobs, job) >= 0;
+
     /// <summary> Number of ranks in a log; reaching it means the log is finished. </summary>
     public static int RankCount(uint job) => IsGrandCompany(job) ? 3 : 5;
 

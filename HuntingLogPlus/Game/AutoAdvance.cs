@@ -46,7 +46,7 @@ internal sealed class AutoAdvance(HuntData data)
 
         var currentClass = HuntProgress.CurrentClass;
         var grandCompany = HuntProgress.CurrentGrandCompany;
-        var rows = targets.Refresh(false);
+        var rows = targets.Refresh(TargetService.CreditableJobs());
         var keys = rows.Select(row => row.Key).ToHashSet();
 
         if (previous != null && currentClass == previousClass && grandCompany == previousGrandCompany)
@@ -79,7 +79,8 @@ internal sealed class AutoAdvance(HuntData data)
             return;
         }
 
-        TargetService.Sort(rows, Plugin.Config.Sort, false);
+        // Nothing is left in this zone, so the next stop is the nearest zone that still has a target.
+        TargetService.Sort(rows, Plugin.Config.Sort, true);
         var elsewhere = rows.FirstOrDefault(row => !row.Location.IsDuty);
         if (elsewhere != null)
         {
