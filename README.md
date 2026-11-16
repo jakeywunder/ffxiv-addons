@@ -7,6 +7,7 @@ Each addon is kept separately: it has its own folder with its own code, its own 
 | Addon | What it does | Install link |
 | --- | --- | --- |
 | [Hunting Log Plus](HuntingLogPlus/README.md) | Map flags, sorting and a full to-do list, built into the game's Hunting Log. | `https://raw.githubusercontent.com/jakeywunder/ffxiv-addons/main/HuntingLogPlus/repo.json` |
+| [Retainer Sorter](RetainerSorter/README.md) | Sorts and rearranges items across all your retainers by rules you choose, keeping duplicates together. | `https://raw.githubusercontent.com/jakeywunder/ffxiv-addons/main/RetainerSorter/repo.json` |
 
 ## Installing an addon
 

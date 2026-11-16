@@ -1,0 +1,8 @@
+{
+  "Name": "Retainer Sorter",
+  "Author": "jakeywunder",
+  "Punchline": "Sorts and rearranges items across all your retainers by rules you choose.",
+  "Description": "Adds 'Sort Retainers' and 'Deposit Items' buttons to the retainer list at a summoning bell.\n\n+ Rules decide which retainer holds what: materia here, materials there, gear, housing, food...\n+ Duplicates always end up together, merged into as few stacks as possible\n+ Materials can be ordered by the level they are gathered or crafted at\n+ A preview shows every retainer before and after; nothing moves until you press Execute\n+ Stop at any moment and resume later\n+ Profiles can be exported and shared\n+ Deposit: put inventory items with the retainers that already hold them, after a preview\n\nA sort only uses your inventory as carrying space and never touches your own items. Only Deposit moves them, and only the ones you see listed.",
+  "Tags": [ "retainer", "inventory", "sort" ],
+  "CategoryTags": [ "inventory" ]
+}
