@@ -1,0 +1,34 @@
+[
+    {
+        "Author":  "jakeywunder",
+        "Name":  "Retainer Sorter",
+        "InternalName":  "RetainerSorter",
+        "AssemblyVersion":  "0.1.0.0",
+        "Description":  "Adds \u0027Sort Retainers\u0027 and \u0027Deposit Items\u0027 buttons to the retainer list at a summoning bell.\n\n+ Rules decide which retainer holds what: materia here, materials there, gear, housing, food...\n+ Duplicates always end up together, merged into as few stacks as possible\n+ Materials can be ordered by the level they are gathered or crafted at\n+ A preview shows every retainer before and after; nothing moves until you press Execute\n+ Stop at any moment and resume later\n+ Profiles can be exported and shared\n+ Deposit: put inventory items with the retainers that already hold them, after a preview\n\nA sort only uses your inventory as carrying space and never touches your own items. Only Deposit moves them, and only the ones you see listed.",
+        "ApplicableVersion":  "any",
+        "Tags":  [
+                     "retainer",
+                     "inventory",
+                     "sort"
+                 ],
+        "CategoryTags":  [
+                             "inventory"
+                         ],
+        "DalamudApiLevel":  15,
+        "LoadRequiredState":  0,
+        "LoadSync":  false,
+        "CanUnloadAsync":  false,
+        "LoadPriority":  0,
+        "Punchline":  "Sorts and rearranges items across all your retainers by rules you choose.",
+        "AcceptsFeedback":  true,
+        "RepoUrl":  "https://github.com/jakeywunder/ffxiv-addons",
+        "IconUrl":  "https://raw.githubusercontent.com/jakeywunder/ffxiv-addons/main/RetainerSorter/images/icon.png",
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadCount":  0,
+        "LastUpdate":  1794799560,
+        "DownloadLinkInstall":  "https://github.com/jakeywunder/ffxiv-addons/releases/download/RetainerSorter-v0.1.0.0/RetainerSorter.zip",
+        "DownloadLinkUpdate":  "https://github.com/jakeywunder/ffxiv-addons/releases/download/RetainerSorter-v0.1.0.0/RetainerSorter.zip",
+        "DownloadLinkTesting":  "https://github.com/jakeywunder/ffxiv-addons/releases/download/RetainerSorter-v0.1.0.0/RetainerSorter.zip"
+    }
+]
